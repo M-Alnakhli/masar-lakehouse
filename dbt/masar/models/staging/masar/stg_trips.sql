@@ -1,5 +1,12 @@
+-- bronze is append-only, so a re-run of land_bronze duplicates rows.
+-- keep only the latest ingested copy of each trip_id.
 with source as (
-    select * from {{ source('bronze', 'trips') }}
+    select * from (
+        select *, row_number() over (
+            partition by trip_id order by _ingested_at desc) as _rn
+        from {{ source('bronze', 'trips') }}
+        where trip_id is not null
+    ) where _rn = 1
 )
 select
     cast(trip_id as string)           as trip_id,
